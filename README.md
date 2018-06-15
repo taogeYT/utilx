@@ -1,20 +1,10 @@
-## Logger For Python
+## Utils For Python
 
 ### Installation:
-    pip install log4py
+    pip install utilx
 
 #### usage:
-	from log4py import create_logger
-
-
-	log = create_logger(__name__)
-
-	log.info("hello world")
-
-
-	@create_logger()
-	class A:
-		def __init__(self):
-			self.logger.info("hello A")
-
-	A()
+	from utilx.mongodb import MongoDB
+	uri = 'mongodb://user:password@host:27017/db'
+	db = MongoDB(uri, "test")
+	print(db.find_one())
