@@ -49,13 +49,17 @@ class MongoDB(object):
 
 
 def main():
-    uri = 'mongodb://data:datadata@centos:27017/data'
+    # uri = 'mongodb://data:datadata@centos:27017/data'
+    # db = MongoDB(uri)
+    # db.table = "test.lyt2"
+    # # db.insert({"test": "123"})
+    # print(list(db.find()))
+    # db.table = "lyt"
+    # db.insert({'lyt': "test"})
+    # print(db.find_one())
+    uri = 'mongodb://datamiddle:1dfe32Sse@101.132.140.207:27018/datamiddle'
     db = MongoDB(uri)
-    db.table = "test.lyt2"
-    # db.insert({"test": "123"})
-    print(list(db.find()))
-    db.table = "lyt"
-    db.insert({'lyt': "test"})
+    db.table = "datasource.dwd_device_info"
     print(db.find_one())
 
 if __name__ == '__main__':
