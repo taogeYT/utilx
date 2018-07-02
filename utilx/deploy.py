@@ -1,8 +1,11 @@
+__all__ = ["Setup", "setenv", "Environment"]
 import sys
 import os
 import importlib
 import getpass
 import inspect
+from functools import partial
+# from collections import defaultdict
 
 _conf = """
 [program:{project}_{name}]
@@ -57,9 +60,13 @@ class Setup(object):
         self.config["envconfig"] = self.envconfig
 
     def _get_script_names(self):
-        methods = dict(inspect.getmembers(self.cls(), inspect.ismethod))
-        funcs = dict(inspect.getmembers(self.cls(), inspect.isfunction))
-        return [name for name in (*methods.keys(), *funcs.keys()) if not name.startswith("_")]
+        # methods = dict(inspect.getmembers(self.cls(), inspect.ismethod))
+        # funcs = dict(inspect.getmembers(self.cls(), inspect.isfunction))
+        # names = [name for name in (*methods.keys(), *funcs.keys()) if not name.startswith("_")]
+        except_names = [name for name in self.cls._env.keys() if self.env not in self.cls._env[name]]
+        # print(except_names)
+        names = [name for name in dir(self.cls) if name not in except_names and not name.startswith("_")]
+        return names
 
     def _gen_scripts_conf(self):
         configs = []
@@ -94,7 +101,10 @@ class Setup(object):
             _file = f"/etc/supervisord.d/{self.project}.ini"
         else:
             _file = file
-        config_content = self.gen_config()
+        if self.env == "stop":
+            config_content = ""
+        else:
+            config_content = self.gen_config()
         self.update_conf_file(config_content, _file)
         if file is None:
             os.system("sudo supervisorctl update")
@@ -104,18 +114,38 @@ class Setup(object):
             else:
                 print(f"success, 当前环境: {self._env_name}={self.env}")
         else:
-            print("未找到可用配置")
+            if self.env == "stop":
+                print("已停止所有supervisor任务")
+            else:
+                print("未找到可用配置")
 
     def update_conf_file(self, content, file_path):
         with open(file_path, "w") as f:
             f.write(content)
 
 
-if __name__ == '__main__':
-    # cmds = [
-    #     ("celery", "/usr/local/anaconda3/bin/celery worker -l INFO -A webapp.api.celery"),
-    # ]
-    class T:
-        def _f(self):
-            pass
-    Setup(T).export("test.ini")
+def setenv(envs):
+    if not isinstance(envs, (list, tuple)):
+        print("ERROR: setenv 参数必须是列表类型")
+        sys.exit(1)
+    class Register:
+        def __init__(self, func):
+            self.func = func
+
+        def __get__(self, instance, cls):
+            if instance is None:
+                cls._env[self.func.__name__] = envs
+            else:
+                return self.func
+    return Register
+
+
+class _EnvironmentMeta(type):
+    def __init__(cls, name, bases, dct):
+        cls._env = {}
+        super().__init__(name, bases, dct)
+        inspect.getmembers(cls, inspect.ismethod)
+
+class Environment(object, metaclass=_EnvironmentMeta):
+    pass
+
