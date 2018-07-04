@@ -107,6 +107,8 @@ class Setup(object):
             config_content = self.gen_config()
         self.update_conf_file(config_content, _file)
         if file is None:
+            log_dir = os.path.join(self.home, "logs")
+            os.makedirs(log_dir) if not os.path.exists(log_dir) else None
             os.system("sudo supervisorctl update")
         if config_content:
             if self.env is None:
