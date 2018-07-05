@@ -98,7 +98,7 @@ class Setup(object):
         file 默认路径 /etc/supervisord.d/
         """
         if file is None:
-            _file = f"/etc/supervisord.d/{self.project}.ini"
+            _file = f"{self.project}.ini"
         else:
             _file = file
         if self.env == "stop":
@@ -109,6 +109,7 @@ class Setup(object):
         if file is None:
             log_dir = os.path.join(self.home, "logs")
             os.makedirs(log_dir) if not os.path.exists(log_dir) else None
+            os.system(f"sudo mv {_file} /etc/supervisord.d/")
             os.system("sudo supervisorctl update")
         if config_content:
             if self.env is None:
