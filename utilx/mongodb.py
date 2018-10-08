@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 import urllib
 import os
+import datetime
 
 
 class MongoDB(object):
@@ -51,6 +52,27 @@ class MongoDB(object):
         self.client.close()
 
 
+class NameParser(object):
+    def __init__(self, name):
+        name = name.strip()
+        names = name.split(".", 1)
+        names.reverse()
+        if name.startswith("$"):
+            self._db = names.pop().lstrip("$")
+            self._table = names[0] if names else ""
+        else:
+            self._db = ""
+            self._table = name
+
+    @property
+    def db(self):
+        return self._db
+
+    @property
+    def table(self):
+        return self._table
+
+
 class MongoUtil(MongoClient):
     """
     创建方法
@@ -89,10 +111,12 @@ class MongoUtil(MongoClient):
             self = self.get_collection(name.table)
         return self
 
-    def get_now(self):
+    @property
+    def now(self):
         return datetime.datetime.now()
 
-    def get_utcnow(self):
+    @property
+    def utcnow(self):
         return datetime.datetime.utcnow()
 
 
