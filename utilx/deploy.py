@@ -33,7 +33,7 @@ class Setup(object):
     """
     config = {"autorestart": True, "startsecs": 3}
 
-    def __init__(self, cls_name, commands=[], config={}, env_name="PY_ENV"):
+    def __init__(self, cls_name, commands=[], config={}, env_name="PYENV"):
         self.config.update(config)
         # module_name, class_name = os.path.splitext(cls_name)
         # self.cls = getattr(importlib.import_module(module_name), class_name.strip("."))
@@ -92,39 +92,81 @@ class Setup(object):
         print(content)
         return content
 
-    def export(self, file=None):
+    # def export(self, file=None):
+    #     """
+    #     supervisor配置导出
+    #     file 默认路径 /etc/supervisord.d/
+    #     """
+    #     if file is None:
+    #         _file = f"{self.project}.ini"
+    #     else:
+    #         _file = file
+    #     if self.env == "stop":
+    #         config_content = ""
+    #     else:
+    #         config_content = self.gen_config()
+    #     self.update_conf_file(config_content, _file)
+    #     if file is None:
+    #         log_dir = os.path.join(self.home, "logs")
+    #         os.makedirs(log_dir) if not os.path.exists(log_dir) else None
+    #         os.system(f"sudo mv {_file} /etc/supervisord.d/")
+    #         os.system("sudo supervisorctl update")
+    #     if config_content:
+    #         if self.env is None:
+    #             print(f"WARN: 环境变量'{self._env_name}'未配置")
+    #         else:
+    #             print(f"success, 当前环境: {self._env_name}={self.env}")
+    #     else:
+    #         if self.env == "stop":
+    #             print("已停止所有supervisor任务")
+    #         else:
+    #             print("未找到可用配置")
+
+    def update_conf_file(self, content, file_path):
+        with open(file_path, "w") as f:
+            f.write(content)
+
+    def export(self):
         """
         supervisor配置导出
         file 默认路径 /etc/supervisord.d/
+        """
+        import fire
+        fire.Fire(self._export)
+
+    def _export(self, cmd, file=None):
+        """
+        参数说明
+        --cmd: [start|stop]
+        --file: 导出文件
         """
         if file is None:
             _file = f"{self.project}.ini"
         else:
             _file = file
-        if self.env == "stop":
+
+        if cmd == "stop":
             config_content = ""
         else:
             config_content = self.gen_config()
+
         self.update_conf_file(config_content, _file)
         if file is None:
             log_dir = os.path.join(self.home, "logs")
             os.makedirs(log_dir) if not os.path.exists(log_dir) else None
             os.system(f"sudo mv {_file} /etc/supervisord.d/")
             os.system("sudo supervisorctl update")
+
         if config_content:
             if self.env is None:
                 print(f"WARN: 环境变量'{self._env_name}'未配置")
             else:
                 print(f"success, 当前环境: {self._env_name}={self.env}")
         else:
-            if self.env == "stop":
+            if cmd == "stop":
                 print("已停止所有supervisor任务")
             else:
                 print("未找到可用配置")
-
-    def update_conf_file(self, content, file_path):
-        with open(file_path, "w") as f:
-            f.write(content)
 
 
 def setenv(envs):

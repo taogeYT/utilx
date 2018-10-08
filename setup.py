@@ -12,7 +12,7 @@ setup(
     name='utilx',
     py_modules=["utilx"],
     version=version,
-    install_requires=['log4py>=1.0.2'],
+    install_requires=['log4py>=1.0.6'],
     description='Python Toolkit',
     classifiers=[
         "License :: OSI Approved :: MIT License",

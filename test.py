@@ -24,7 +24,7 @@ def main():
     t = Tdeploy()
     print(dir(t))
     print(Tdeploy._env, t._env)
-    Setup(Tdeploy).export("test.ini")
+    Setup(Tdeploy).export()
 
 if __name__ == '__main__':
     # import fire
