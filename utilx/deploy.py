@@ -1,3 +1,11 @@
+"""
+设startsecs=1, startretries=3（都是默认值），如果有一程序有这些行为：
+
+a) 启动即退出，exit code为0, 那么supervisor会在重试3试后停止重试，进程状态为FATAL。
+b) 启动即退出，exit code为1, 那么supervisor会在重试3试后停止重试，进程状态为FATAL。
+c) 启动3秒后退出，exit code为1, 那么supervisor会无限重启程序，无视startretries。
+d) 启动3秒后退出，exit code为0, 那么supervisor不会重启，进程状态为EXIT。
+"""
 __all__ = ["Setup", "setenv", "Environment"]
 import sys
 import os

@@ -119,19 +119,85 @@ class MongoUtil(MongoClient):
     def utcnow(self):
         return datetime.datetime.utcnow()
 
+class _ModelMetaclass(type):
+    def __new__(cls, name, bases, attrs):
+        if name != "Document":
+            attrs["mongo"] = attrs["__connect__"]
+            attrs['db'] = attrs["mongo"].use(attrs["__table__"])
+        return type.__new__(cls, name, bases, attrs)
+
+class Document(dict, metaclass=_ModelMetaclass):
+    """
+    mongo 文档操作
+    mongo = MongoUtil(host="localhost")
+    class User(Document):
+        __connect__ = mongo
+        __table__ = "access_user"
+
+    _id = User(username="lyt", password="111111").save()
+    user = User.find_one({"_id": _id})
+    user.update_one({"$set": {"password": "123456"}})
+    """
+
+    def save(self):
+        now = self.now
+        self.update({"create_time": now, "update_time": now})
+        rs = self.db.insert_one(self)
+        return rs.inserted_id
+
+    @classmethod
+    def find_one(cls, condition):
+        doc = cls.db.find_one(condition)
+        if doc:
+            return cls(doc)
+        else:
+            return {}
+
+    @classmethod
+    def find(cls, condition):
+        docs = cls.db.find(condition)
+        return (cls(doc) for doc in docs)
+
+    def update_one(self, update=None):
+        _id = self.get("_id")
+        # print(type(self))
+        if update:
+            # if all(["$" in key for key in update]):
+            #     update.setdefault("$set", {}).update({"update_time": self.mongo.now})
+            #     self.db.update_one({"_id": _id}, update)
+            # else:
+            #     raise ValueError("<update> 参数格式错误, 没有有效的 Update Operators")
+            update.setdefault("$set", {}).update({"update_time": self.now})
+            self.db.update_one({"_id": _id}, update)
+        else:
+            self.update({"update_time": self.now})
+            self.db.update({"_id": _id}, self)
+
+    @property
+    def now(self):
+        return datetime.datetime.now()
+
+    @property
+    def utcnow(self):
+        return datetime.datetime.utcnow()
+
 
 def main():
     uri = 'mongodb://data:datadata@loc213:27017/data'
-    db = MongoDB(uri)
-    db.table = "test.lyt2"
-    print(list(db.find()))
-    db.table = "lyt"
-    print(list(db.find()))
-    print(db["test"]["lyt"].find_one())
-    # uri = 'mongodb://data:datadata@10.108.129.213:27017/data'
     # db = MongoDB(uri)
+    # db.table = "test.lyt2"
+    # print(list(db.find()))
     # db.table = "lyt"
-    # print(db.find_one())
+    # print(list(db.find()))
+    # print(db["test"]["lyt"].find_one())
+
+    mongo = MongoUtil(uri)
+    class User(Document):
+        __connect__ = mongo
+        __table__ = "access_user"
+    _id = User(username="lyt", password="111111").save()
+    user = User.find_one({"_id": _id})
+    print(user)
 
 if __name__ == '__main__':
     main()
