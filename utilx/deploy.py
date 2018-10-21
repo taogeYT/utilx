@@ -134,6 +134,13 @@ class Setup(object):
         with open(file_path, "w") as f:
             f.write(content)
 
+    def update_supervisor(self, file)
+        if file is None:
+            log_dir = os.path.join(self.home, "logs")
+            os.makedirs(log_dir) if not os.path.exists(log_dir) else None
+            os.system(f"sudo mv {file} /etc/supervisord.d/")
+            os.system("sudo supervisorctl update")
+
     def export(self):
         """
         supervisor配置导出
@@ -175,6 +182,25 @@ class Setup(object):
                 print("已停止所有supervisor任务")
             else:
                 print("未找到可用配置")
+
+
+    # def _start(self, file):
+    #     config_content = self.gen_config()
+    #     self.update_conf_file(config_content, file)
+    #     self.update_supervisor(file)
+    #     if config_content:
+    #         if self.env is None:
+    #             print(f"WARN: 环境变量'{self._env_name}'未配置")
+    #         else:
+    #             print(f"success, 当前环境: {self._env_name}={self.env}")
+    #     else:
+    #         print("未找到可用配置")
+
+    # def _stop(self, file):
+    #     config_content = ""
+    #     self.update_conf_file(config_content, file)
+    #     self.update_supervisor(file)
+    #     print("已停止所有supervisor任务")
 
 
 def setenv(envs):
