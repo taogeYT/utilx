@@ -1,5 +1,4 @@
 from pymongo import MongoClient
-import urllib
 import os
 import datetime
 
@@ -119,12 +118,14 @@ class MongoUtil(MongoClient):
     def utcnow(self):
         return datetime.datetime.utcnow()
 
+
 class _ModelMetaclass(type):
-    def __new__(cls, name, bases, attrs):
+    def __new__(mcs, name, bases, attrs):
         if name != "Document":
             attrs["mongo"] = attrs["__connect__"]
             attrs['db'] = attrs["mongo"].use(attrs["__table__"])
-        return type.__new__(cls, name, bases, attrs)
+        return type.__new__(mcs, name, bases, attrs)
+
 
 class Document(dict, metaclass=_ModelMetaclass):
     """
@@ -192,12 +193,14 @@ def main():
     # print(db["test"]["lyt"].find_one())
 
     mongo = MongoUtil(uri)
+
     class User(Document):
         __connect__ = mongo
         __table__ = "access_user"
     _id = User(username="lyt", password="111111").save()
     user = User.find_one({"_id": _id})
     print(user)
+
 
 if __name__ == '__main__':
     main()

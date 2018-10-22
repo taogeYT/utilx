@@ -26,6 +26,7 @@ def main():
     print(Tdeploy._env, t._env)
     Setup(Tdeploy).export()
 
+
 if __name__ == '__main__':
     # import fire
     # fire.Fire(Tdeploy())

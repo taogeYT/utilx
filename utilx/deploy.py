@@ -131,14 +131,16 @@ class Setup(object):
     #             print("未找到可用配置")
 
     def update_conf_file(self, content, file_path):
-        with open(file_path, "w") as f:
+        file = self.get_file(file_path)
+        with open(file, "w") as f:
             f.write(content)
 
-    def update_supervisor(self, file)
+    def update_supervisor(self, file):
         if file is None:
+            _file = self.get_file(file)
             log_dir = os.path.join(self.home, "logs")
             os.makedirs(log_dir) if not os.path.exists(log_dir) else None
-            os.system(f"sudo mv {file} /etc/supervisord.d/")
+            os.system(f"sudo mv {_file} /etc/supervisord.d/")
             os.system("sudo supervisorctl update")
 
     def export(self):
@@ -149,64 +151,81 @@ class Setup(object):
         import fire
         fire.Fire(self._export)
 
-    def _export(self, cmd, file=None):
-        """
-        参数说明
-        --cmd: [start|stop]
-        --file: 导出文件
-        """
+    def get_file(self, file):
         if file is None:
             _file = f"{self.project}.ini"
         else:
             _file = file
+        return _file
 
-        if cmd == "stop":
-            config_content = ""
+    def _export(self, cmd):
+        """
+        参数说明
+        --cmd: [start|stop|restart]
+        --file: 导出文件
+        """
+        if cmd == "start":
+            self._start(None)
+        elif cmd == "stop":
+            self._stop(None)
+        elif cmd == "restart":
+            self._stop(None)
+            self._start(None)
         else:
-            config_content = self.gen_config()
+            print(f"Usage: python {sys.argv[0]} [start|stop|restart]")
 
-        self.update_conf_file(config_content, _file)
-        if file is None:
-            log_dir = os.path.join(self.home, "logs")
-            os.makedirs(log_dir) if not os.path.exists(log_dir) else None
-            os.system(f"sudo mv {_file} /etc/supervisord.d/")
-            os.system("sudo supervisorctl update")
+        # if file is None:
+        #     _file = f"{self.project}.ini"
+        # else:
+        #     _file = file
 
+        # if cmd == "stop":
+        #     config_content = ""
+        # else:
+        #     config_content = self.gen_config()
+
+        # self.update_conf_file(config_content, _file)
+        # if file is None:
+        #     log_dir = os.path.join(self.home, "logs")
+        #     os.makedirs(log_dir) if not os.path.exists(log_dir) else None
+        #     os.system(f"sudo mv {_file} /etc/supervisord.d/")
+        #     os.system("sudo supervisorctl update")
+
+        # if config_content:
+        #     if self.env is None:
+        #         print(f"WARN: 环境变量'{self._env_name}'未配置")
+        #     else:
+        #         print(f"success, 当前环境: {self._env_name}={self.env}")
+        # else:
+        #     if cmd == "stop":
+        #         print("已停止所有supervisor任务")
+        #     else:
+        #         print("未找到可用配置")
+
+    def _start(self, file):
+        config_content = self.gen_config()
+        self.update_conf_file(config_content, file)
+        self.update_supervisor(file)
         if config_content:
             if self.env is None:
                 print(f"WARN: 环境变量'{self._env_name}'未配置")
             else:
                 print(f"success, 当前环境: {self._env_name}={self.env}")
         else:
-            if cmd == "stop":
-                print("已停止所有supervisor任务")
-            else:
-                print("未找到可用配置")
+            print("未找到可用配置")
 
-
-    # def _start(self, file):
-    #     config_content = self.gen_config()
-    #     self.update_conf_file(config_content, file)
-    #     self.update_supervisor(file)
-    #     if config_content:
-    #         if self.env is None:
-    #             print(f"WARN: 环境变量'{self._env_name}'未配置")
-    #         else:
-    #             print(f"success, 当前环境: {self._env_name}={self.env}")
-    #     else:
-    #         print("未找到可用配置")
-
-    # def _stop(self, file):
-    #     config_content = ""
-    #     self.update_conf_file(config_content, file)
-    #     self.update_supervisor(file)
-    #     print("已停止所有supervisor任务")
+    def _stop(self, file):
+        config_content = ""
+        self.update_conf_file(config_content, file)
+        self.update_supervisor(file)
+        print("已停止所有supervisor任务")
 
 
 def setenv(envs):
     if not isinstance(envs, (list, tuple)):
         print("ERROR: setenv 参数必须是列表类型")
         sys.exit(1)
+
     class Register:
         def __init__(self, func):
             self.func = func
@@ -224,6 +243,7 @@ class _EnvironmentMeta(type):
         cls._env = {}
         super().__init__(name, bases, dct)
         inspect.getmembers(cls, inspect.ismethod)
+
 
 class Environment(object, metaclass=_EnvironmentMeta):
     pass
