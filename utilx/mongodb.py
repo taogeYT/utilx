@@ -4,10 +4,18 @@ import datetime
 
 
 class MongoDB(object):
+    """
+    db = MongoDB()
+    db.table = "lyt2"
+    print(list(db.find()))
+    print(db["test"]["lyt"].find_one())
+    db.table = "test.lyt1"
+    print(list(db.find()))
+    """
     def __init__(self, uri=None, table=None):
         if "://" in uri:
             self.client = MongoClient(uri)
-            self._db_name = os.path.split(uri)[-1]
+            self._db_name = os.path.split(uri)[-1].split("?")[0]
             self._src_db_name = self._db_name
         else:
             self.client = MongoClient()
@@ -20,9 +28,6 @@ class MongoDB(object):
             return getattr(self.client[self._db_name][self.table], name)
         else:
             return getattr(self.client[self._db_name], name)
-
-    def get(self, table):
-        pass
 
     def __getitem__(self, key):
         return self.client[key]
@@ -94,18 +99,12 @@ class MongoUtil(MongoClient):
     #     # self.default_db = self._uri.db
     #     super(MongoDB, self).__init__(host, port, document_class, tz_aware, connect, **kwargs)
 
-    # # def get_default_database(self):
-    # #     if self.default_db:
-    # #         return self.get_database(self.default_db)
-    # #     else:
-    # #         raise ValueError("没有默认的数据库")
-
     def use(self, name):
         name = NameParser(name)
         if name.db:
             self = self.get_database(name.db)
         else:
-            self = self.get_default_database()
+            self = self.get_database()
         if name.table:
             self = self.get_collection(name.table)
         return self
@@ -161,13 +160,7 @@ class Document(dict, metaclass=_ModelMetaclass):
 
     def update_one(self, update=None):
         _id = self.get("_id")
-        # print(type(self))
         if update:
-            # if all(["$" in key for key in update]):
-            #     update.setdefault("$set", {}).update({"update_time": self.mongo.now})
-            #     self.db.update_one({"_id": _id}, update)
-            # else:
-            #     raise ValueError("<update> 参数格式错误, 没有有效的 Update Operators")
             update.setdefault("$set", {}).update({"update_time": self.now})
             self.db.update_one({"_id": _id}, update)
         else:
@@ -185,13 +178,6 @@ class Document(dict, metaclass=_ModelMetaclass):
 
 def main():
     uri = 'mongodb://data:datadata@loc213:27017/data'
-    # db = MongoDB(uri)
-    # db.table = "test.lyt2"
-    # print(list(db.find()))
-    # db.table = "lyt"
-    # print(list(db.find()))
-    # print(db["test"]["lyt"].find_one())
-
     mongo = MongoUtil(uri)
 
     class User(Document):

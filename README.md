@@ -6,8 +6,8 @@
 #### usage:
 	from utilx.mongodb import MongoDB
 	uri = 'mongodb://user:password@host:27017/db'
-	db = MongoDB(uri, "test")
-	print(db.find_one())
+	db = MongoUtil(uri)
+	print(db.use("$test.user").find_one())
 
 	from utilx.mongodb import MongoUtil
 	mongo = MongoUtil(uri)
