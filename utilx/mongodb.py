@@ -5,12 +5,12 @@ import datetime
 
 class MongoDB(object):
     """
-    db = MongoDB()
-    db.table = "lyt2"
-    print(list(db.find()))
-    print(db["test"]["lyt"].find_one())
-    db.table = "test.lyt1"
-    print(list(db.find()))
+    collection = MongoDB()
+    collection.table = "lyt2"
+    print(list(collection.find()))
+    print(collection["test"]["lyt"].find_one())
+    collection.table = "test.lyt1"
+    print(list(collection.find()))
     """
     def __init__(self, uri=None, table=None):
         if "://" in uri:
@@ -80,34 +80,21 @@ class NameParser(object):
 class MongoUtil(MongoClient):
     """
     创建方法
-    db = MongoUtil(host="centos")
+    collection = MongoUtil(host="centos")
 
     查询方法
-    db.use("$test.students").find_one()
+    collection.use("$test.students").find_one()
     """
-    # def __init__(self,
-    #         host=None,
-    #         port=None,
-    #         document_class=dict,
-    #         tz_aware=None,
-    #         connect=None,
-    #         **kwargs):
-    #     # if host is None:
-    #     #     self._uri = URI("")
-    #     # else:
-    #     #     self._uri = URI(host)
-    #     # self.default_db = self._uri.db
-    #     super(MongoDB, self).__init__(host, port, document_class, tz_aware, connect, **kwargs)
 
     def use(self, name):
         name = NameParser(name)
         if name.db:
-            self = self.get_database(name.db)
+            instance = self.get_database(name.db)
         else:
-            self = self.get_database()
+            instance = self.get_database()
         if name.table:
-            self = self.get_collection(name.table)
-        return self
+            instance = instance.get_collection(name.table)
+        return instance
 
     @property
     def now(self):
@@ -121,59 +108,69 @@ class MongoUtil(MongoClient):
 class _ModelMetaclass(type):
     def __new__(mcs, name, bases, attrs):
         if name != "Document":
-            attrs["mongo"] = attrs["__connect__"]
-            attrs['db'] = attrs["mongo"].use(attrs["__table__"])
+            attrs["client"] = attrs["__connect__"]
+            attrs['collection'] = attrs["client"].use(attrs["__table__"])
         return type.__new__(mcs, name, bases, attrs)
 
 
 class Document(dict, metaclass=_ModelMetaclass):
     """
-    mongo 文档操作
-    mongo = MongoUtil(host="localhost")
+    client 文档操作
+    client = MongoUtil(host="localhost")
     class User(Document):
-        __connect__ = mongo
+        __connect__ = client
         __table__ = "access_user"
+
+    class UserUTC(Document):
+        __connect__ = client
+        __table__ = "access_user"
+        # 时间切换到标准时区，默认本地时间
+        utc = True
 
     _id = User(username="lyt", password="111111").save()
     user = User.find_one({"_id": _id})
     user.update_one({"$set": {"password": "123456"}})
     """
+    utc = False
+    client = None
+    collection = None
 
     def save(self):
         now = self.now
         self.update({"create_time": now, "update_time": now})
-        rs = self.db.insert_one(self)
+        rs = self.collection.insert_one(self)
         return rs.inserted_id
 
     @classmethod
-    def find_one(cls, condition):
-        doc = cls.db.find_one(condition)
+    def find_one(cls, condition=None, *args, **kwargs):
+        doc = cls.collection.find_one(condition, *args, **kwargs)
         if doc:
-            return cls(doc)
+            return cls(**doc)
         else:
             return {}
 
     @classmethod
-    def find(cls, condition):
-        docs = cls.db.find(condition)
-        return (cls(doc) for doc in docs)
+    def find(cls, *args, **kwargs):
+        docs = cls.collection.find(*args, **kwargs)
+        return (cls(**doc) for doc in docs)
 
-    def update_one(self, update=None):
+    def update_one(self, update=None, upsert=False,
+                   bypass_document_validation=False,
+                   collation=None, array_filters=None, session=None):
         _id = self.get("_id")
         if update:
             update.setdefault("$set", {}).update({"update_time": self.now})
-            self.db.update_one({"_id": _id}, update)
+            self.collection.update_one({"_id": _id}, update, upsert, bypass_document_validation, collation, array_filters, session)
         else:
             self.update({"update_time": self.now})
-            self.db.update({"_id": _id}, self)
+            self.collection.update_one({"_id": _id}, {"$set": self}, upsert, bypass_document_validation, collation, array_filters, session)
 
     @property
     def now(self):
-        return datetime.datetime.now()
-
-    @property
-    def utcnow(self):
-        return datetime.datetime.utcnow()
+        if self.utc:
+            return self.client.utcnow
+        else:
+            return self.client.now
 
 
 def main():
@@ -181,11 +178,18 @@ def main():
     mongo = MongoUtil(uri)
 
     class User(Document):
+        utc = True
         __connect__ = mongo
         __table__ = "access_user"
     _id = User(username="lyt", password="111111").save()
     user = User.find_one({"_id": _id})
     print(user)
+    import time
+    time.sleep(1)
+    user.update_one()
+    user.update_one({"$set": {"append": "new"}})
+    for user in User.find():
+        print(user)
 
 
 if __name__ == '__main__':

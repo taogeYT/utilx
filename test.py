@@ -11,10 +11,12 @@ class TDaemon(Daemon):
 
 class Tdeploy(Environment):
 
-    @setenv(["dev", None])
+    @staticmethod
+    @setenv(["dev"])
     def f():
         print("ok")
 
+    @staticmethod
     def f2():
         print("ok")
 
@@ -23,8 +25,9 @@ def main():
     # run_daemon(TDaemon("pid.pid"))
     t = Tdeploy()
     print(dir(t))
-    print(Tdeploy._env, t._env)
-    Setup(Tdeploy).export()
+    print(Tdeploy.env, t.env)
+    setup = Setup(Tdeploy)
+    setup.export()
 
 
 if __name__ == '__main__':

@@ -9,10 +9,10 @@ d) 启动3秒后退出，exit code为0, 那么supervisor不会重启，进程状
 __all__ = ["Setup", "setenv", "Environment"]
 import sys
 import os
-import importlib
 import getpass
-import inspect
-from functools import partial
+# import importlib
+# import inspect
+# from functools import partial
 # from collections import defaultdict
 
 _conf = """
@@ -41,13 +41,18 @@ class Setup(object):
     """
     config = {"autorestart": True, "startsecs": 3}
 
-    def __init__(self, cls_name, commands=[], config={}, env_name="PYENV"):
+    def __init__(self, script=None, commands=None, config=None, env_name="PYENV"):
+        if config is None:
+            config = {}
+        if commands is None:
+            commands = []
         self.config.update(config)
-        # module_name, class_name = os.path.splitext(cls_name)
-        # self.cls = getattr(importlib.import_module(module_name), class_name.strip("."))
-        self.cls = cls_name
+        # module_name, class_name = os.path.splitext(script)
+        # self.script = getattr(importlib.import_module(module_name), class_name.strip("."))
+        self.script = script
         self._commands = commands
-        file_path = self.cls.__module__
+        # file_path = self.script.__module__
+        file_path = self.__module__
         self.python = os.path.join(sys.prefix, "bin", "python")
         self.home = os.path.dirname(os.path.abspath(file_path))
         self.project = os.path.basename(self.home)
@@ -62,25 +67,26 @@ class Setup(object):
         else:
             self.envconfig = f"environment=PATH={path}"
 
-        self.config["home"] = self.home
-        self.config["user"] = getpass.getuser()
-        self.config["project"] = self.project
-        self.config["envconfig"] = self.envconfig
+        # self.config["home"] = self.home
+        # self.config["user"] = getpass.getuser()
+        # self.config["project"] = self.project
+        # self.config["envconfig"] = self.envconfig
+        self.config.update({"home": self.home, "user": getpass.getuser(), "project": self.project, "envconfig": self.envconfig})
 
     def _get_script_names(self):
-        # methods = dict(inspect.getmembers(self.cls(), inspect.ismethod))
-        # funcs = dict(inspect.getmembers(self.cls(), inspect.isfunction))
+        # methods = dict(inspect.getmembers(self.script(), inspect.ismethod))
+        # funcs = dict(inspect.getmembers(self.script(), inspect.isfunction))
         # names = [name for name in (*methods.keys(), *funcs.keys()) if not name.startswith("_")]
-        except_names = [name for name in self.cls._env.keys() if self.env not in self.cls._env[name]]
+        except_names = [name for name in self.script.env.keys() if self.env not in self.script.env[name]]
         # print(except_names)
-        names = [name for name in dir(self.cls) if name not in except_names and not name.startswith("_")]
+        names = [name for name in dir(self.script) if name != "env" and name not in except_names and not name.startswith("_")]
         return names
 
     def _gen_scripts_conf(self):
         configs = []
         for name in self._get_script_names():
             logfile = os.path.join(self.home, "logs", f"{name}.log")
-            script = os.path.abspath(sys.modules[self.cls.__module__].__file__)
+            script = os.path.abspath(sys.modules[self.script.__module__].__file__)
             # script = "{self.home}/run.py"
             command = f"{self.python} -u {script} {name}"
             configs.append(_conf.format(command=command, name=name, logfile=logfile, **self.config))
@@ -88,9 +94,10 @@ class Setup(object):
 
     def _gen_cmd_conf(self):
         configs = []
-        for name, command in self._commands:
-            logfile = os.path.join(self.home, "logs", f"{name}.log")
-            configs.append(_conf.format(command=command, name=name, logfile=logfile, **self.config))
+        for name, command, *envs in self._commands:
+            if not envs or self.env in envs:
+                logfile = os.path.join(self.home, "logs", f"{name}.log")
+                configs.append(_conf.format(command=command, name=name, logfile=logfile, **self.config))
         return configs
 
     def gen_config(self):
@@ -99,36 +106,6 @@ class Setup(object):
         content = "".join([*script_config, *cmd_config])
         print(content)
         return content
-
-    # def export(self, file=None):
-    #     """
-    #     supervisor配置导出
-    #     file 默认路径 /etc/supervisord.d/
-    #     """
-    #     if file is None:
-    #         _file = f"{self.project}.ini"
-    #     else:
-    #         _file = file
-    #     if self.env == "stop":
-    #         config_content = ""
-    #     else:
-    #         config_content = self.gen_config()
-    #     self.update_conf_file(config_content, _file)
-    #     if file is None:
-    #         log_dir = os.path.join(self.home, "logs")
-    #         os.makedirs(log_dir) if not os.path.exists(log_dir) else None
-    #         os.system(f"sudo mv {_file} /etc/supervisord.d/")
-    #         os.system("sudo supervisorctl update")
-    #     if config_content:
-    #         if self.env is None:
-    #             print(f"WARN: 环境变量'{self._env_name}'未配置")
-    #         else:
-    #             print(f"success, 当前环境: {self._env_name}={self.env}")
-    #     else:
-    #         if self.env == "stop":
-    #             print("已停止所有supervisor任务")
-    #         else:
-    #             print("未找到可用配置")
 
     def update_conf_file(self, content, file_path):
         file = self.get_file(file_path)
@@ -174,34 +151,6 @@ class Setup(object):
         else:
             print(f"Usage: python {sys.argv[0]} [start|stop|restart]")
 
-        # if file is None:
-        #     _file = f"{self.project}.ini"
-        # else:
-        #     _file = file
-
-        # if cmd == "stop":
-        #     config_content = ""
-        # else:
-        #     config_content = self.gen_config()
-
-        # self.update_conf_file(config_content, _file)
-        # if file is None:
-        #     log_dir = os.path.join(self.home, "logs")
-        #     os.makedirs(log_dir) if not os.path.exists(log_dir) else None
-        #     os.system(f"sudo mv {_file} /etc/supervisord.d/")
-        #     os.system("sudo supervisorctl update")
-
-        # if config_content:
-        #     if self.env is None:
-        #         print(f"WARN: 环境变量'{self._env_name}'未配置")
-        #     else:
-        #         print(f"success, 当前环境: {self._env_name}={self.env}")
-        # else:
-        #     if cmd == "stop":
-        #         print("已停止所有supervisor任务")
-        #     else:
-        #         print("未找到可用配置")
-
     def _start(self, file):
         config_content = self.gen_config()
         self.update_conf_file(config_content, file)
@@ -221,30 +170,42 @@ class Setup(object):
         print("已停止所有supervisor任务")
 
 
+# def setenv(envs):
+#     if not isinstance(envs, (list, tuple)):
+#         print("ERROR: setenv 参数必须是列表类型")
+#         sys.exit(1)
+#
+#     class Register:
+#         def __init__(self, func):
+#             self.func = func
+#
+#         def __get__(self, instance, cls):
+#             if instance is None:
+#                 cls._env[self.func.__name__] = envs
+#             else:
+#                 return self.func
+#     return Register
+
+class _EnvironmentMeta(type):
+    pass
+    # def __init__(cls, name, bases, dct):
+    #     cls._env = {}
+    #     super().__init__(name, bases, dct)
+    #     inspect.getmembers(cls, inspect.ismethod)
+
+
+class Environment(object, metaclass=_EnvironmentMeta):
+    env = {}
+
+
 def setenv(envs):
     if not isinstance(envs, (list, tuple)):
         print("ERROR: setenv 参数必须是列表类型")
         sys.exit(1)
 
-    class Register:
-        def __init__(self, func):
-            self.func = func
-
-        def __get__(self, instance, cls):
-            if instance is None:
-                cls._env[self.func.__name__] = envs
-            else:
-                return self.func
-    return Register
-
-
-class _EnvironmentMeta(type):
-    def __init__(cls, name, bases, dct):
-        cls._env = {}
-        super().__init__(name, bases, dct)
-        inspect.getmembers(cls, inspect.ismethod)
-
-
-class Environment(object, metaclass=_EnvironmentMeta):
-    pass
-
+    def decorator(func):
+        Environment.env[func.__name__] = envs
+        def wrapper(*args, **kw):
+            return func(*args, **kw)
+        return wrapper
+    return decorator
