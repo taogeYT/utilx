@@ -24,9 +24,9 @@ user        = {user}
 autorestart = {autorestart}
 startsecs   = {startsecs}
 {envconfig}
-redirect_stderr         = true
-stdout_logfile_maxbytes = 10MB
-stdout_logfile_backups  = 5
+redirect_stderr         = {redirect_stderr}
+stdout_logfile_maxbytes = {stdout_logfile_maxbytes}
+stdout_logfile_backups  = {stdout_logfile_backups}
 stdout_logfile          = {logfile}
 """
 
@@ -39,7 +39,7 @@ class Setup(object):
                 pass
         Setup(T, commands).export()
     """
-    config = {"autorestart": True, "startsecs": 3}
+    config = {"autorestart": True, "startsecs": 5, "stdout_logfile_maxbytes": "200MB", "redirect_stderr": "true", "stdout_logfile_backups": 5}
 
     def __init__(self, script=None, commands=None, config=None, env_name="PYENV"):
         if config is None:
@@ -67,10 +67,6 @@ class Setup(object):
         else:
             self.envconfig = f"environment=PATH={path}"
 
-        # self.config["home"] = self.home
-        # self.config["user"] = getpass.getuser()
-        # self.config["project"] = self.project
-        # self.config["envconfig"] = self.envconfig
         self.config.update({"home": self.home, "user": getpass.getuser(), "project": self.project, "envconfig": self.envconfig})
 
     def _get_script_names(self):

@@ -147,7 +147,7 @@ class Document(dict, metaclass=_ModelMetaclass):
         if doc:
             return cls(**doc)
         else:
-            return {}
+            return cls()
 
     @classmethod
     def find(cls, *args, **kwargs):
