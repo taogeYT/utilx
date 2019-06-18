@@ -15,6 +15,9 @@ import getpass
 # from functools import partial
 # from collections import defaultdict
 
+
+from plan import Plan
+
 _conf = """
 [program:{project}_{name}]
 
@@ -66,7 +69,7 @@ class Setup(object):
             self.envconfig = f'environment=PATH={path},{env_name}={self.env}'
         else:
             self.envconfig = f"environment=PATH={path}"
-
+        self.cron = Plan(self.project)
         self.config.update({"home": self.home, "user": getpass.getuser(), "project": self.project, "envconfig": self.envconfig})
 
     def _get_script_names(self):
@@ -113,8 +116,12 @@ class Setup(object):
             _file = self.get_file(file)
             log_dir = os.path.join(self.home, "logs")
             os.makedirs(log_dir) if not os.path.exists(log_dir) else None
-            os.system(f"sudo mv {_file} /etc/supervisord.d/")
-            os.system("sudo supervisorctl update")
+            code1 = os.system(f"sudo mv {_file} /etc/supervisord.d/")
+            code2 = os.system("sudo supervisorctl update")
+            return code1 == 0 and code2 == 0
+
+    def add_crontab(self, *args, **kwargs):
+        self.cron.command(*args, **kwargs)
 
     def export(self):
         """
@@ -150,12 +157,16 @@ class Setup(object):
     def _start(self, file):
         config_content = self.gen_config()
         self.update_conf_file(config_content, file)
-        self.update_supervisor(file)
+        result = self.update_supervisor(file)
         if config_content:
             if self.env is None:
                 print(f"WARN: 环境变量'{self._env_name}'未配置")
             else:
-                print(f"success, 当前环境: {self._env_name}={self.env}")
+                if result:
+                    self.cron.run("update")
+                    print(f"success, 当前环境: {self._env_name}={self.env}")
+                else:
+                    print(f"failed, supervisor命令执行异常, 当前环境: {self._env_name}={self.env}")
         else:
             print("未找到可用配置")
 
@@ -163,7 +174,8 @@ class Setup(object):
         config_content = ""
         self.update_conf_file(config_content, file)
         self.update_supervisor(file)
-        print("已停止所有supervisor任务")
+        self.cron.run("clear")
+        print("已停止所有执行任务")
 
 
 # def setenv(envs):
