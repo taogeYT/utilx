@@ -121,6 +121,31 @@ class Setup(object):
             return code1 == 0 and code2 == 0
 
     def add_crontab(self, *args, **kwargs):
+        """
+        example:
+            setup = Setup()
+            setup.add_crontab('ls /tmp', every='1.day', at='12:00')
+
+        every can be:
+
+        [1-60].minute [1-24].hour [1-31].day
+        [1-12].month [1].year
+        jan feb mar apr may jun jul aug sep oct nov dec
+        sun mon tue wed thu fri sat weekday weekend
+        or any fullname of month names and day of week names
+        (case insensitive)
+
+        at can be:
+
+        when every is minute, can not be set
+        when every is hour, can be minute.[0-59]
+        when every is day of month, can be minute.[0-59], hour.[0-23]
+        when every is month, can be day.[1-31], day of week,
+                             minute.[0-59], hour.[0-23]
+        when every is day of week, can be minute.[0-59], hour.[0-23]
+
+        at can also be multiple at values seperated by one space.
+        """
         self.cron.command(*args, **kwargs)
 
     def export(self):
