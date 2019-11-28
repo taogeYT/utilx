@@ -1,3 +1,4 @@
+from bson import ObjectId
 from pymongo import MongoClient
 import os
 import datetime
@@ -139,13 +140,15 @@ class Document(dict, metaclass=_ModelMetaclass):
         now = self.now
         self.update({"create_time": now, "update_time": now})
         rs = self.collection.insert_one(self)
-        return rs.inserted_id
+        _id = rs.inserted_id
+        self.update({"_id": _id})
+        return _id
 
     @classmethod
     def find_one(cls, condition=None, *args, **kwargs):
         doc = cls.collection.find_one(condition, *args, **kwargs)
         if doc:
-            return cls(**doc)
+            return cls(doc)
         else:
             return cls()
 
@@ -157,9 +160,21 @@ class Document(dict, metaclass=_ModelMetaclass):
     def update_one(self, update=None, upsert=False,
                    bypass_document_validation=False,
                    collation=None, array_filters=None, session=None):
-        _id = self.get("_id")
+        # _id = self.get("_id")
+        # if update:
+        #     update.setdefault("$set", {}).update({"update_time": self.now})
+        #     self.collection.update_one({"_id": _id}, update, upsert, bypass_document_validation, collation, array_filters, session)
+        # else:
+        #     self.update({"update_time": self.now})
+        #     self.collection.update_one({"_id": _id}, {"$set": self}, upsert, bypass_document_validation, collation, array_filters, session)
+        _id = self.get("_id", ObjectId())
         if update:
-            update.setdefault("$set", {}).update({"update_time": self.now})
+            if "_id" not in self:
+                now = self.now
+                self.update({"_id": _id, "create_time": now, "update_time": now})
+                update.setdefault("$set", {}).update(self)
+            else:
+                update.setdefault("$set", {}).update({"update_time": self.now})
             self.collection.update_one({"_id": _id}, update, upsert, bypass_document_validation, collation, array_filters, session)
         else:
             self.update({"update_time": self.now})
