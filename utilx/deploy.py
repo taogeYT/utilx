@@ -33,6 +33,8 @@ redirect_stderr         = {redirect_stderr}
 stdout_logfile_maxbytes = {stdout_logfile_maxbytes}
 stdout_logfile_backups  = {stdout_logfile_backups}
 stdout_logfile          = {logfile}
+killasgroup=true
+stopasgroup=true
 """
 
 
