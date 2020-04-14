@@ -12,7 +12,7 @@ setup(
     name='utilx',
     py_modules=["utilx"],
     version=version,
-    install_requires=['log4py>=1.0.6', 'python-dateutil', 'plan>=0.5'],
+    install_requires=['plan>=0.5', 'fire'],
     description='Python Toolkit',
     classifiers=[
         "License :: OSI Approved :: MIT License",
@@ -32,4 +32,7 @@ setup(
     packages=find_packages(),
     include_package_data=False,
     zip_safe=True,
+    entry_points={
+        'console_scripts': ['utilx = utilx.cli:main']
+    }
 )

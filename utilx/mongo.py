@@ -1,60 +1,6 @@
 from bson import ObjectId
 from pymongo import MongoClient
-import os
 import datetime
-
-
-class MongoDB(object):
-    """
-    collection = MongoDB()
-    collection.table = "lyt2"
-    print(list(collection.find()))
-    print(collection["test"]["lyt"].find_one())
-    collection.table = "test.lyt1"
-    print(list(collection.find()))
-    """
-    def __init__(self, uri=None, table=None):
-        if "://" in uri:
-            self.client = MongoClient(uri)
-            self._db_name = os.path.split(uri)[-1].split("?")[0]
-            self._src_db_name = self._db_name
-        else:
-            self.client = MongoClient()
-            self._db_name = uri
-            self._src_db_name = self._db_name
-        self._table = table
-
-    def __getattr__(self, name):
-        if self.table:
-            return getattr(self.client[self._db_name][self.table], name)
-        else:
-            return getattr(self.client[self._db_name], name)
-
-    def __getitem__(self, key):
-        return self.client[key]
-
-    def use(self, name):
-        self._db_name = name
-
-    @property
-    def table(self):
-        if self._table and "." in self._table:
-            self._db_name, _table = self._table.split(".")
-            self.use(self._db_name)
-            return _table
-        else:
-            if self._db_name == self._src_db_name:
-                return self._table
-            else:
-                self._db_name = self._src_db_name
-                return self._table
-
-    @table.setter
-    def table(self, value):
-        self._table = value
-
-    def close(self):
-        self.client.close()
 
 
 class NameParser(object):
@@ -148,7 +94,7 @@ class Document(dict, metaclass=_ModelMetaclass):
     def find_one(cls, condition=None, *args, **kwargs):
         doc = cls.collection.find_one(condition, *args, **kwargs)
         if doc:
-            return cls(doc)
+            return cls(**doc)
         else:
             return cls()
 
@@ -160,13 +106,6 @@ class Document(dict, metaclass=_ModelMetaclass):
     def update_one(self, update=None, upsert=False,
                    bypass_document_validation=False,
                    collation=None, array_filters=None, session=None):
-        # _id = self.get("_id")
-        # if update:
-        #     update.setdefault("$set", {}).update({"update_time": self.now})
-        #     self.collection.update_one({"_id": _id}, update, upsert, bypass_document_validation, collation, array_filters, session)
-        # else:
-        #     self.update({"update_time": self.now})
-        #     self.collection.update_one({"_id": _id}, {"$set": self}, upsert, bypass_document_validation, collation, array_filters, session)
         _id = self.get("_id", ObjectId())
         if update:
             if "_id" not in self:

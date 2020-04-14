@@ -1,24 +1,26 @@
 """
-设startsecs=1, startretries=3（都是默认值），如果有一程序有这些行为：
+supervisor
+"""
+import fire
+import sys
+import os
+import getpass
 
+from plan import Plan, PlanError
+
+__all__ = ["Supervisor", "set_env", "Environment"]
+
+"""
+配置说明
+注意：如果是执行python程序，命令python启动命令要加-u参数，example: python -u app.py
+
+设startsecs=1, startretries=3（都是默认值），如果有一程序有这些行为：
 a) 启动即退出，exit code为0, 那么supervisor会在重试3试后停止重试，进程状态为FATAL。
 b) 启动即退出，exit code为1, 那么supervisor会在重试3试后停止重试，进程状态为FATAL。
 c) 启动3秒后退出，exit code为1, 那么supervisor会无限重启程序，无视startretries。
 d) 启动3秒后退出，exit code为0, 那么supervisor不会重启，进程状态为EXIT。
 """
-__all__ = ["Setup", "setenv", "Environment"]
-import sys
-import os
-import getpass
-# import importlib
-# import inspect
-# from functools import partial
-# from collections import defaultdict
-
-
-from plan import Plan
-
-_conf = """
+config_template = """
 [program:{project}_{name}]
 
 command     = {command}
@@ -26,23 +28,25 @@ directory   = {home}
 user        = {user}
 autorestart = {autorestart}
 startsecs   = {startsecs}
-{envconfig}
+{env_config}
 redirect_stderr         = {redirect_stderr}
 stdout_logfile_maxbytes = {stdout_logfile_maxbytes}
 stdout_logfile_backups  = {stdout_logfile_backups}
 stdout_logfile          = {logfile}
 """
 
-class Setup(object):
+
+class Supervisor(object):
     """
     example:
-        commands = [("celery", "/usr/local/anaconda3/bin/celery worker -l INFO -A webapp.api.celery")]
-        class T:
-            def f(self):
+        commands = [("celery_task", "celery worker -l INFO -A webapp.api.celery")]
+        class T(Environment):
+            def task1(self):
                 pass
-        Setup(T, commands).export()
+        Supervisor(T, commands).export()
     """
-    config = {"autorestart": True, "startsecs": 5, "stdout_logfile_maxbytes": "200MB", "redirect_stderr": "true", "stdout_logfile_backups": 5}
+    config = {"autorestart": True, "startsecs": 5, "redirect_stderr": "true",
+              "stdout_logfile_maxbytes": "200MB", "stdout_logfile_backups": 5}
 
     def __init__(self, script=None, commands=None, config=None, env_name="PYENV"):
         if config is None:
@@ -50,11 +54,8 @@ class Setup(object):
         if commands is None:
             commands = []
         self.config.update(config)
-        # module_name, class_name = os.path.splitext(script)
-        # self.script = getattr(importlib.import_module(module_name), class_name.strip("."))
         self.script = script
         self._commands = commands
-        # file_path = self.script.__module__
         file_path = self.__module__
         self.python = os.path.join(sys.prefix, "bin", "python")
         self.home = os.path.dirname(os.path.abspath(file_path))
@@ -63,21 +64,16 @@ class Setup(object):
         self.env = os.getenv(env_name)
         python = os.path.join(sys.prefix, "bin")
         path = f'{python}:%(ENV_PATH)s'
-        # "/usr/local/anaconda3/bin:%(ENV_PATH)s"
-        # "environment=PYTHONPATH=/opt/mypypath:%(ENV_PYTHONPATH)s,PATH=/opt/mypath:%(ENV_PATH)s"
         if self.env:
-            self.envconfig = f'environment=PATH={path},{env_name}={self.env}'
+            self.env_config = f'environment=PATH={path},{env_name}={self.env}'
         else:
-            self.envconfig = f"environment=PATH={path}"
+            self.env_config = f"environment=PATH={path}"
         self.cron = Plan(self.project)
-        self.config.update({"home": self.home, "user": getpass.getuser(), "project": self.project, "envconfig": self.envconfig})
+        self.config.update(
+            {"home": self.home, "user": getpass.getuser(), "project": self.project, "env_config": self.env_config})
 
     def _get_script_names(self):
-        # methods = dict(inspect.getmembers(self.script(), inspect.ismethod))
-        # funcs = dict(inspect.getmembers(self.script(), inspect.isfunction))
-        # names = [name for name in (*methods.keys(), *funcs.keys()) if not name.startswith("_")]
         except_names = [name for name in self.script.env.keys() if self.env not in self.script.env[name]]
-        # print(except_names)
         names = [name for name in dir(self.script) if name != "env" and name not in except_names and not name.startswith("_")]
         return names
 
@@ -88,7 +84,7 @@ class Setup(object):
             script = os.path.abspath(sys.modules[self.script.__module__].__file__)
             # script = "{self.home}/run.py"
             command = f"{self.python} -u {script} {name}"
-            configs.append(_conf.format(command=command, name=name, logfile=logfile, **self.config))
+            configs.append(config_template.format(command=command, name=name, logfile=logfile, **self.config))
         return configs
 
     def _gen_cmd_conf(self):
@@ -96,11 +92,11 @@ class Setup(object):
         for name, command, *envs in self._commands:
             if not envs or self.env in envs:
                 logfile = os.path.join(self.home, "logs", f"{name}.log")
-                configs.append(_conf.format(command=command, name=name, logfile=logfile, **self.config))
+                configs.append(config_template.format(command=command, name=name, logfile=logfile, **self.config))
         return configs
 
     def gen_config(self):
-        script_config = self._gen_scripts_conf()
+        script_config = self._gen_scripts_conf() if self.script else []
         cmd_config = self._gen_cmd_conf()
         content = "".join([*script_config, *cmd_config])
         print(content)
@@ -153,7 +149,6 @@ class Setup(object):
         supervisor配置导出
         file 默认路径 /etc/supervisord.d/
         """
-        import fire
         fire.Fire(self._export)
 
     def get_file(self, file):
@@ -199,25 +194,12 @@ class Setup(object):
         config_content = ""
         self.update_conf_file(config_content, file)
         self.update_supervisor(file)
-        self.cron.run("clear")
+        try:
+            self.cron.run("clear")
+        except PlanError:
+            print("没有要清空的crontab任务")
         print("已停止所有执行任务")
 
-
-# def setenv(envs):
-#     if not isinstance(envs, (list, tuple)):
-#         print("ERROR: setenv 参数必须是列表类型")
-#         sys.exit(1)
-#
-#     class Register:
-#         def __init__(self, func):
-#             self.func = func
-#
-#         def __get__(self, instance, cls):
-#             if instance is None:
-#                 cls._env[self.func.__name__] = envs
-#             else:
-#                 return self.func
-#     return Register
 
 class _EnvironmentMeta(type):
     pass
@@ -231,13 +213,14 @@ class Environment(object, metaclass=_EnvironmentMeta):
     env = {}
 
 
-def setenv(envs):
+def set_env(envs):
     if not isinstance(envs, (list, tuple)):
-        print("ERROR: setenv 参数必须是列表类型")
+        print("ERROR: set_env 参数必须是列表类型")
         sys.exit(1)
 
     def decorator(func):
         Environment.env[func.__name__] = envs
+
         def wrapper(*args, **kw):
             return func(*args, **kw)
         return wrapper
