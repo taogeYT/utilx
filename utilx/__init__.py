@@ -4,4 +4,6 @@
 """
 
 __author__ = "lyt"
-__version__ = '1.9.1'
+__version__ = '1.9.2'
+from utilx.deploy import Deployment
+from utilx.mongo import Document, MongoUtil
