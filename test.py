@@ -1,6 +1,5 @@
-from run import TestDeploy
-from utilx.deploy import Supervisor
+from utilx.deploy import Deployment
 
+commands = [("demo", "ping www.example.com")]
 
-supervisor = Supervisor(TestDeploy)
-supervisor.export()
+Deployment(commands=commands).config.export()
