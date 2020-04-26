@@ -117,13 +117,14 @@ class BaseDeployment(ABC):
 class Deployment(BaseDeployment):
     python = os.path.join(sys.prefix, "bin", "python")
 
-    def __init__(self, commands=None, script=None, crons=None, config=None, need_sudo=False):
+    def __init__(self, commands=None, script=None, crons=None,
+                 config=None, need_sudo=False, supervisor_conf_path="/etc/supervisord.d/"):
         self.need_sudo = need_sudo
+        self.supervisor_conf_path = supervisor_conf_path
         self.crons = self.get_crons(crons)
         self.scripts = self.get_scripts(script)
         self.commands = self.get_commands(commands)
         self.home = os.path.dirname(os.path.abspath(self.__module__))
-        # self.pyenv = os.getenv(env_name)
         self.config = Config(self.home, config)
         self.cron = Plan(self.config.project)
         self.init_tasks()
@@ -136,18 +137,6 @@ class Deployment(BaseDeployment):
         for cron in self.crons:
             self.cron.command(cron)
 
-    # def get_scripts(self, script_obj):
-    #     if script_obj is None:
-    #         return []
-    #     if isinstance(script_obj, Environment):
-    #         # 存放脚本文件名称
-    #         script_file_name = os.path.abspath(sys.modules[script_obj.__module__].__file__)
-    #         except_names = [name for name in script_obj.envs if self.pyenv not in script_obj.envs[name]]
-    #         scripts = [name for name in dir(script_obj) if
-    #                    name != "envs" and name not in except_names and not name.startswith("_")]
-    #         return [(script, f"{self.python} -u {script_file_name} {script}") for script in scripts]
-    #     else:
-    #         raise TypeError("无效的script_obj类型")
     def get_scripts(self, script_obj):
         if script_obj is None:
             return []
@@ -160,25 +149,21 @@ class Deployment(BaseDeployment):
     def get_commands(self, commands):
         name_commands = []
         if commands:
-            for name, command, *envs in commands:
-                # if not envs or self.pyenv in envs:
-                name_commands.append((name, command))
+            name_commands = commands
         return name_commands
 
     def get_crons(self, crons_config):
         crons = []
         if crons:
-            for command, *envs in crons_config:
-                # if not envs or self.pyenv in envs:
-                crons.append(command)
+            crons = crons_config
         return crons
 
     def update_supervisor(self, file):
         if self.need_sudo:
-            code1 = os.system(f"sudo mv {file} /etc/supervisord.d/")
+            code1 = os.system(f"sudo mv {file} {self.supervisor_conf_path}")
             code2 = os.system("sudo supervisorctl update")
         else:
-            code1 = os.system(f"mv {file} /etc/supervisord.d/")
+            code1 = os.system(f"mv {file} {self.supervisor_conf_path}")
             code2 = os.system("supervisorctl update")
         return code1 or code2
 
