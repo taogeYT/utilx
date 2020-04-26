@@ -24,6 +24,7 @@ install.*
 sftp-config.json
 .Python
 demo.py
+*.utilx.ini
 
 # Installer logs
 pip-log.txt
